@@ -12,11 +12,13 @@ def transcribe_audio(audio, processor, model):
     Returns:
         String: Transcription text
     """
-    inputs = processor(audio, sampling_rate=16000, return_tensors="pt")
+    inputs = processor(audio, sampling_rate=16000, truncation=False, padding="longest", return_attention_mask=True, return_tensors="pt")
     with torch.no_grad():
-        predicted_ids = model.generate(inputs["input_features"], return_dict_in_generate=True, output_scores=False, attention_mask=1)
+        predicted_ids = model.generate(**inputs, return_timestamps=True)
+
+        # predicted_ids = model.generate(inputs["input_features"], return_segments=True, return_dict_in_generate=True, return_timestamps=True)
     
     # Decode transcription
-    transcription = processor.batch_decode(predicted_ids.sequences, skip_special_tokens=True)[0]
+    transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
 
     return transcription
