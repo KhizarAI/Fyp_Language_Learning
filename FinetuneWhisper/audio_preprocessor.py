@@ -12,8 +12,4 @@ def preprocess_audio(audio_path, target_sample_rate=16000):
         array: Preprocessed audio as a array.
     """
     audio, sr = librosa.load(audio_path, sr=target_sample_rate)
-    print(audio)
-    print(type(audio))
     return audio
-
-preprocess_audio("recod.wav")
