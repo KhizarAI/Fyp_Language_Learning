@@ -1,4 +1,7 @@
 transformers
 torch
-soundfile 
+keyboard
+pvrecorder
 librosa
+wave
+flask
