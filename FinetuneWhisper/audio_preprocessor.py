@@ -1,6 +1,7 @@
-import librosa
-
-def preprocess_audio(audio_path, target_sample_rate=16000):
+from pydub import AudioSegment
+import numpy as np
+import torch
+def preprocess_audio(audio_io, target_sample_rate=16000):
     """
     Preprocess audio for Whisper. Truncates audio longer than max_duration.
     
@@ -11,5 +12,7 @@ def preprocess_audio(audio_path, target_sample_rate=16000):
     Returns:
         array: Preprocessed audio as a array.
     """
-    audio, sr = librosa.load(audio_path, sr=target_sample_rate)
-    return audio
+    audio = AudioSegment.from_file(audio_io, format="webm")
+    audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+    samples = np.array(audio.get_array_of_samples()).astype(np.float32) / 32768.0
+    return torch.tensor(samples)
