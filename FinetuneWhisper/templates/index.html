@@ -1,0 +1,187 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Transcription</title>
+</head>
+<body>
+    <h1>Transcribe Audio</h1>
+    <form action="/transcribe" method="post" enctype="multipart/form-data">
+        <input type="file" name="audio" accept="audio/*" required>
+        <button type="submit">Transcribe</button>
+    </form>
+    {% if Transcribe %}
+        <h2>Transcription:</h2>
+        <p>{{ Transcribe }}</p>
+    {% endif %}
+</body>
+</html> -->
+
+<!-- templates/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Real-Time Voice Chatbot</title>
+</head>
+<body>
+    <h1>Speak Now</h1>
+    <button id="start">Start Recording</button>
+    <button id="stop">Stop Recording</button>
+    <p><strong>Transcription:</strong> <span id="transcription"></span></p>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById("start").onclick = async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.start();
+
+            mediaRecorder.ondataavailable = e => {
+                audioChunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append("audio", audioBlob, "recording.webm");
+
+                const response = await fetch("/transcribe", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const text = await response.text();
+                document.getElementById("transcription").innerHTML = text;
+                audioChunks = [];
+            };
+        };
+
+        document.getElementById("stop").onclick = () => {
+            mediaRecorder.stop();
+        };
+    </script>
+</body>
+</html> -->
+
+<!-- templates/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Voice Chatbot</title>
+</head>
+<body>
+  <h1>Speak to Transcribe</h1>
+  <button id="start">Start Recording</button>
+  <button id="stop" disabled>Stop Recording</button>
+  <p><strong>Transcript:</strong> <span id="transcription">{{ Transcribe or '' }}</span></p>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    const startButton = document.getElementById("start");
+    const stopButton = document.getElementById("stop");
+
+    startButton.onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "voice_input.webm");
+
+        const response = await fetch("/transcribe", {
+          method: "POST",
+          body: formData
+        });
+
+        const html = await response.text();
+        document.open();
+        document.write(html);
+        document.close();
+      };
+
+      startButton.disabled = true;
+      stopButton.disabled = false;
+    };
+
+    stopButton.onclick = () => {
+      mediaRecorder.stop();
+      startButton.disabled = false;
+      stopButton.disabled = true;
+    };
+  </script>
+</body>
+</html> -->
+
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Voice Chatbot</title>
+</head>
+<body>
+  <h1>Speak to Transcribe</h1>
+  <button id="start">Start Recording</button>
+  <button id="stop" disabled>Stop Recording</button>
+
+  <p><strong>Transcript:</strong> <span id="transcription"></span></p>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    const startButton = document.getElementById("start");
+    const stopButton = document.getElementById("stop");
+    const transcriptEl = document.getElementById("transcription");
+
+    startButton.onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = event => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "voice_input.webm");
+
+        const response = await fetch("/transcribe", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        transcriptEl.textContent = data.transcript || "No transcript returned.";
+      };
+
+      mediaRecorder.start();
+      startButton.disabled = true;
+      stopButton.disabled = false;
+    };
+
+    stopButton.onclick = () => {
+      mediaRecorder.stop();
+      startButton.disabled = false;
+      stopButton.disabled = true;
+    };
+  </script>
+</body>
+</html>
+
