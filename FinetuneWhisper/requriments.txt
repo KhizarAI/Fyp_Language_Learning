@@ -5,3 +5,4 @@ pvrecorder
 librosa
 wave
 flask
+pydub
