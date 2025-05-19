@@ -1,187 +1,114 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Transcription</title>
-</head>
-<body>
-    <h1>Transcribe Audio</h1>
-    <form action="/transcribe" method="post" enctype="multipart/form-data">
-        <input type="file" name="audio" accept="audio/*" required>
-        <button type="submit">Transcribe</button>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-white rounded-lg shadow-md p-6">
+    <form id="youtubeForm" class="mb-6">
+        <div class="flex flex-col space-y-4">
+            <label for="youtube_url" class="text-lg font-medium">YouTube Video URL:</label>
+            <input type="text" id="youtube_url" name="youtube_url" 
+                   class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   placeholder="https://www.youtube.com/watch?v=..." required>
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                Analyze Transcript
+            </button>
+        </div>
     </form>
-    {% if Transcribe %}
-        <h2>Transcription:</h2>
-        <p>{{ Transcribe }}</p>
+    
+    {% if error %}
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+        {{ error }}
+    </div>
     {% endif %}
-</body>
-</html> -->
+    
+    <div id="processingSection" class="{% if not processing %}hidden{% endif %} text-center py-8">
+        <img src="{{ url_for('static', filename='images/loading.gif') }}" alt="Loading" class="mx-auto h-16 w-16 mb-4">
+        <p class="text-lg">Processing the YouTube video transcript...</p>
+        <div id="progressBar" class="w-full bg-gray-200 rounded-full h-2.5 mt-4">
+            <div class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+        </div>
+        <p id="progressText" class="text-sm text-gray-600 mt-2">Initializing...</p>
+    </div>
+    <div class="text-center mt-8">
+        <button id="showChatBtn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
+            Start Chat with Video Content
+        </button>
+        
+        
+    </div>
+    
+    <div id="resultsSection" class="hidden mt-8">
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Video Player</h2>
+            <div class="aspect-w-16 aspect-h-9">
+                <iframe id="youtubePlayer" class="w-full h-96" frameborder="0" allowfullscreen></iframe>
+            </div>
+        </div>
+        
+        
+    </div>
+</div>
 
-<!-- templates/index.html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Real-Time Voice Chatbot</title>
-</head>
-<body>
-    <h1>Speak Now</h1>
-    <button id="start">Start Recording</button>
-    <button id="stop">Stop Recording</button>
-    <p><strong>Transcription:</strong> <span id="transcription"></span></p>
-
-    <script>
-        let mediaRecorder;
-        let audioChunks = [];
-
-        document.getElementById("start").onclick = async () => {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.start();
-
-            mediaRecorder.ondataavailable = e => {
-                audioChunks.push(e.data);
-            };
-
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const formData = new FormData();
-                formData.append("audio", audioBlob, "recording.webm");
-
-                const response = await fetch("/transcribe", {
-                    method: "POST",
-                    body: formData
+<script>
+$(document).ready(function() {
+    $('#youtubeForm').on('submit', function(e) {
+        e.preventDefault();
+        const url = $('#youtube_url').val();
+        
+        // Show processing section
+        $('#processingSection').removeClass('hidden');
+        
+        // Submit form via AJAX
+        $.ajax({
+            type: 'POST',
+            url: '/',
+            data: {youtube_url: url},
+            success: function(response) {
+                // Start checking status
+                checkProcessingStatus();
+            },
+            error: function(xhr) {
+                alert('Error: ' + xhr.responseText);
+                $('#processingSection').addClass('hidden');
+            }
+        });
+    });
+    
+    function checkProcessingStatus() {
+        $.get('/status', function(data) {
+            if (data.status === 'complete') {
+                // Processing complete
+                $('#processingSection').addClass('hidden');
+                $('#resultsSection').removeClass('hidden');
+                
+                // Set up YouTube player
+                const videoId = '{{ session.get("video_id", "") }}';
+                $('#youtubePlayer').attr('src', `https://www.youtube.com/embed/${videoId}?autoplay=1`);
+                
+                // Display QA pairs
+                const qaContainer = $('#qaContainer');
+                data.qa_pairs.forEach(qa => {
+                    qaContainer.append(`
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <p class="font-medium">${qa.split('Answer:')[0]}</p>
+                            <p class="text-gray-600 mt-1">${qa.split('Answer:')[1] || ''}</p>
+                        </div>
+                    `);
                 });
-
-                const text = await response.text();
-                document.getElementById("transcription").innerHTML = text;
-                audioChunks = [];
-            };
-        };
-
-        document.getElementById("stop").onclick = () => {
-            mediaRecorder.stop();
-        };
-    </script>
-</body>
-</html> -->
-
-<!-- templates/index.html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Voice Chatbot</title>
-</head>
-<body>
-  <h1>Speak to Transcribe</h1>
-  <button id="start">Start Recording</button>
-  <button id="stop" disabled>Stop Recording</button>
-  <p><strong>Transcript:</strong> <span id="transcription">{{ Transcribe or '' }}</span></p>
-
-  <script>
-    let mediaRecorder;
-    let audioChunks = [];
-
-    const startButton = document.getElementById("start");
-    const stopButton = document.getElementById("stop");
-
-    startButton.onclick = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.start();
-      audioChunks = [];
-
-      mediaRecorder.ondataavailable = event => {
-        audioChunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "voice_input.webm");
-
-        const response = await fetch("/transcribe", {
-          method: "POST",
-          body: formData
+                
+            } else if (data.status === 'error') {
+                // Show error
+                $('#processingSection').addClass('hidden');
+                alert('Error: ' + data.message);
+            } else {
+                // Still processing, check again in 2 seconds
+                setTimeout(checkProcessingStatus, 2000);
+            }
         });
-
-        const html = await response.text();
-        document.open();
-        document.write(html);
-        document.close();
-      };
-
-      startButton.disabled = true;
-      stopButton.disabled = false;
-    };
-
-    stopButton.onclick = () => {
-      mediaRecorder.stop();
-      startButton.disabled = false;
-      stopButton.disabled = true;
-    };
-  </script>
-</body>
-</html> -->
-
-<!-- templates/index.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Voice Chatbot</title>
-</head>
-<body>
-  <h1>Speak to Transcribe</h1>
-  <button id="start">Start Recording</button>
-  <button id="stop" disabled>Stop Recording</button>
-
-  <p><strong>Transcript:</strong> <span id="transcription"></span></p>
-
-  <script>
-    let mediaRecorder;
-    let audioChunks = [];
-
-    const startButton = document.getElementById("start");
-    const stopButton = document.getElementById("stop");
-    const transcriptEl = document.getElementById("transcription");
-
-    startButton.onclick = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-
-      mediaRecorder.ondataavailable = event => {
-        audioChunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "voice_input.webm");
-
-        const response = await fetch("/transcribe", {
-          method: "POST",
-          body: formData
-        });
-
-        const data = await response.json();
-        transcriptEl.textContent = data.transcript || "No transcript returned.";
-      };
-
-      mediaRecorder.start();
-      startButton.disabled = true;
-      stopButton.disabled = false;
-    };
-
-    stopButton.onclick = () => {
-      mediaRecorder.stop();
-      startButton.disabled = false;
-      stopButton.disabled = true;
-    };
-  </script>
-</body>
-</html>
-
+    }
+    
+    $('#showChatBtn').on('click', function() {
+        window.location.href = '/chat';
+    });
+});
+</script>
+{% endblock %}

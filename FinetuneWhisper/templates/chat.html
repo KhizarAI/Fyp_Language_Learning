@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+    <div class="flex flex-col md:flex-row gap-6">
+        <!-- Left Column - Video Player -->
+        <div class="md:w-1/2">
+            <h2 class="text-xl font-semibold mb-4">Video Player</h2>
+            <div class="aspect-w-16 aspect-h-9 mb-6">
+                <iframe id="youtubePlayer" class="w-full h-64 md:h-96" frameborder="0" 
+                        allowfullscreen src="https://www.youtube.com/embed/{{ session.get('video_id', '') }}"></iframe>
+            </div>
+            
+            <!-- Voice Recording Section -->
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h2 class="text-xl font-semibold mb-4">Voice Input</h2>
+                <div class="flex space-x-4 mb-4">
+                    <button id="startRecording" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        Start Recording
+                    </button>
+                    <button id="stopRecording" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition" disabled>
+                        Stop Recording
+                    </button>
+                </div>
+                <div id="recordingStatus" class="hidden flex items-center text-gray-700 mb-4">
+                    <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse mr-2"></div>
+                    <span>Recording in progress...</span>
+                </div>
+                <div id="transcriptionResult" class="bg-gray-100 p-3 rounded mb-4">
+                    <p class="font-medium">Transcript:</p>
+                    <p id="transcriptionText" class="mt-1"></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column - Chat Interface -->
+        <div class="md:w-1/2">
+            <h2 class="text-xl font-semibold mb-4">Chat</h2>
+            <div id="chatContainer" class="h-96 overflow-y-auto mb-4 p-3 bg-gray-50 rounded-lg">
+                <!-- Chat messages will appear here -->
+            </div>
+            <form id="chatForm" class="flex gap-2">
+                <input type="text" id="messageInput" 
+                       class="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Type your question...">
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                    Send
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    let mediaRecorder;
+    let audioChunks = [];
+    let chatHistory = [];
+
+    // Initialize voice recording
+    $('#startRecording').on('click', async function() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                
+                $('#transcriptionText').text("Processing...");
+                $('#recordingStatus').addClass('hidden');
+                
+                try {
+                    const formData = new FormData();
+                    formData.append("audio", audioBlob, "recording.webm");
+                    
+                    const response = await fetch("/audio_transcribe", {
+                        method: "POST",
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    if (data.transcription) {
+                        $('#transcriptionText').text(data.transcription);
+                        // Automatically send the transcription as a message
+                        $('#messageInput').val(data.transcription);
+                        $('#chatForm').submit();
+                    } else {
+                        $('#transcriptionText').text("No transcription returned");
+                    }
+                } catch (error) {
+                    $('#transcriptionText').text("Error: " + error.message);
+                }
+            };
+
+            mediaRecorder.start();
+            $('#startRecording').prop('disabled', true);
+            $('#stopRecording').prop('disabled', false);
+            $('#recordingStatus').removeClass('hidden');
+            
+        } catch (error) {
+            alert("Error accessing microphone: " + error.message);
+        }
+    });
+
+    $('#stopRecording').on('click', function() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            $('#startRecording').prop('disabled', false);
+            $('#stopRecording').prop('disabled', true);
+            
+            // Stop all tracks
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+    });
+
+    // Handle chat form submission
+    $('#chatForm').on('submit', function(e) {
+        e.preventDefault();
+        const message = $('#messageInput').val().trim();
+        if (!message) return;
+        
+        // Add user message to chat
+        addMessageToChat('user', message);
+        $('#messageInput').val('');
+        
+        // Simulate bot response (replace with actual API call)
+        setTimeout(() => {
+            addMessageToChat('bot', "This is a simulated response to: " + message);
+        }, 1000);
+    });
+
+    function addMessageToChat(role, content) {
+        const messageClass = role === 'user' ? 'bg-blue-100 ml-auto' : 'bg-gray-200 mr-auto';
+        const messageHtml = `
+            <div class="mb-2 max-w-xs md:max-w-md ${messageClass} p-3 rounded-lg">
+                ${content}
+            </div>
+        `;
+        $('#chatContainer').append(messageHtml);
+        $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
+    }
+});
+</script>
+{% endblock %}
